@@ -12,18 +12,18 @@ export const Wrapper = styled.div`
   align-items: center;
   justify-content: center;
   gap: 12px;
-  border-radius: 18px;
-  border: 1px solid #edf1f7;
-  background: #ffffff;
-  color: #8490a8;
+  border-radius: ${({ theme }) => theme.radii.xl};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.cardLight};
+  color: ${({ theme }) => theme.colors.textSubtle};
   font-size: 0.9rem;
 `
 
 export const Spinner = styled.div`
   width: 20px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.pill};
   border: 2px solid #e6ebf4;
-  border-top-color: #5b2eea;
+  border-top-color: ${({ theme }) => theme.colors.primary};
   animation: ${spin} 800ms linear infinite;
 `

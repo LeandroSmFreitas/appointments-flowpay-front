@@ -15,6 +15,7 @@ O projeto foi construido com React, TypeScript e Vite, seguindo uma arquitetura 
 - [Rotas da aplicacao](#rotas-da-aplicacao)
 - [Integracao com API](#integracao-com-api)
 - [Eventos em tempo real SSE](#eventos-em-tempo-real-sse)
+- [Testes](#testes)
 - [Estrutura de pastas](#estrutura-de-pastas)
 - [Padroes de arquitetura](#padroes-de-arquitetura)
 - [Build de producao](#build-de-producao)
@@ -52,8 +53,9 @@ O projeto foi construido com React, TypeScript e Vite, seguindo uma arquitetura 
 ### Atendimentos
 
 - Listagem de atendimentos.
-- Filtro por status.
-- Filtro por time.
+- Filtro remoto por status.
+- Filtro remoto por time.
+- Paginacao e ordenacao remotas.
 - Criacao de atendimento usando `POST /api/v1/attendances`.
 - Finalizacao de atendimento em andamento.
 - Cancelamento de atendimento aguardando ou em andamento.
@@ -63,6 +65,9 @@ O projeto foi construido com React, TypeScript e Vite, seguindo uma arquitetura 
 ### Agentes
 
 - Listagem de agentes.
+- Filtro remoto por status.
+- Filtro remoto por time.
+- Paginacao e ordenacao remotas.
 - Criacao de agente.
 - Alteracao de status:
   - ONLINE
@@ -137,11 +142,13 @@ O projeto usa variaveis do Vite. Toda variavel usada no front precisa comecar co
 | Variavel | Obrigatoria | Padrao | Descricao |
 | --- | --- | --- | --- |
 | `VITE_API_BASE_URL` | Sim | `http://localhost:8080` | URL base do backend FlowPay |
+| `VITE_STRICT_PAGINATION` | Nao | `false` | Exige envelope paginado nos endpoints de lista quando `true` |
 
 Exemplo:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
+VITE_STRICT_PAGINATION=false
 ```
 
 Se o backend estiver em outra porta ou ambiente:
@@ -177,6 +184,27 @@ npm run lint
 ```
 
 Executa ESLint no projeto.
+
+### Testes
+
+```bash
+npm run test
+```
+
+Executa a suite Vitest.
+
+Para rodar em modo watch:
+
+```bash
+npm run test:watch
+```
+
+Para rodar os testes E2E com Playwright:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
 
 ### Preview
 
@@ -251,30 +279,6 @@ Resposta esperada:
   ]
 }
 ```
-
-#### Atividades recentes
-
-```http
-GET /api/v1/dashboard/activities
-```
-
-Usado para preencher o feed "Atividades recentes" ao entrar no dashboard.
-
-Resposta esperada:
-
-```json
-[
-  {
-    "id": "activity-1",
-    "type": "ATTENDANCE_CREATED",
-    "title": "Atendimento criado",
-    "description": "Atendimento criado e colocado na fila",
-    "createdAt": "2026-07-03T16:45:00Z"
-  }
-]
-```
-
-Se `description` nao vier, o front monta uma descricao padrao conforme o tipo do evento.
 
 #### Eventos do dashboard
 
@@ -392,11 +396,11 @@ Eventos esperados:
 
 1. O dashboard carrega.
 2. O front chama `GET /api/v1/dashboard/summary`.
-3. O front carrega atividades recentes com `GET /api/v1/dashboard/activities`.
-4. O front abre `EventSource` em `/api/v1/dashboard/events`.
-5. Quando chega um evento relevante, o evento funciona como notificacao de mudanca.
+3. O front abre `EventSource` em `/api/v1/dashboard/events`.
+4. Quando chega um evento relevante, o evento funciona como notificacao de mudanca.
+5. O front registra a atividade no feed em memoria.
 6. O front chama novamente `GET /api/v1/dashboard/summary`.
-7. KPIs, cards, graficos, tabelas e feed sao atualizados.
+7. KPIs, cards, graficos e feed sao atualizados.
 
 O evento SSE nao deve ser tratado como fonte principal dos dados agregados. A fonte principal do dashboard continua sendo:
 
@@ -434,6 +438,49 @@ Comentarios SSE mantem a conexao viva e nao criam atividade no feed.
 Se a conexao SSE falhar, o front mantem polling a cada 5 segundos.
 
 Esse fallback e apenas tecnico para atualizacao. O projeto nao cria dados mockados quando a API falha.
+
+## Testes
+
+O projeto usa Vitest, Testing Library, jsdom, jest-axe e Playwright.
+
+Hoje existem testes cobrindo:
+
+- normalizacao do feed de atividades
+- deduplicacao de atividades recentes
+- validacao runtime de contratos da API
+- normalizacao de paginacao no formato Spring
+- cache por query com expiracao e invalidacao por namespace
+- Error Boundary
+- comportamento basico de ordenacao/paginacao da tabela
+- hooks de Atendimentos e Agentes com services mockados
+- payload do modal de criacao de atendimento
+- SSE alimentando o feed global
+- acessibilidade automatizada com axe
+- fluxo E2E de dashboard atualizando por SSE
+- fluxo E2E de criacao de atendimento
+- fluxo E2E de carga/status de agente
+
+Execute:
+
+```bash
+npm run test
+```
+
+Execute E2E:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Antes de entregar alteracoes, rode:
+
+```bash
+npm run lint
+npm run test
+npm run test:e2e
+npm run build
+```
 
 ## Estrutura de pastas
 
@@ -562,6 +609,12 @@ Context e usado apenas para estado compartilhado real:
 
 O feed de atividades recentes fica no contexto de realtime para nao ser perdido ao sair e voltar do dashboard.
 
+Mais detalhes sobre decisoes tecnicas estao em:
+
+```text
+docs/ARCHITECTURE.md
+```
+
 ## Status e enums
 
 ### AttendanceStatus
@@ -609,6 +662,7 @@ Rode:
 
 ```bash
 npm run lint
+npm run test
 npm run build
 ```
 

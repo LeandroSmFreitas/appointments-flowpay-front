@@ -20,8 +20,8 @@ export function StatusBadge(props: StatusBadgeProps) {
       : agentStatusMeta[props.status]
 
   return (
-    <S.Badge $tone={meta.tone}>
-      <span />
+    <S.Badge $tone={meta.tone} aria-label={`Status: ${meta.label}`}>
+      <span aria-hidden="true" />
       {meta.label}
     </S.Badge>
   )

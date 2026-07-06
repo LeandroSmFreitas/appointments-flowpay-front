@@ -1,8 +1,9 @@
 import { yupResolver } from '@hookform/resolvers/yup'
 import { X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
+import { useDialogA11y } from '../../../../hooks/useDialogA11y'
 import { TeamName } from '../../../../models/enum/teamName'
 import type { CreateAgentPayload } from '../../../../models/interface/agent'
 import { teamLabels } from '../../../../utils/statusUtils'
@@ -40,6 +41,7 @@ export function CreateAgentModal({
   onClose,
   onSubmit,
 }: CreateAgentModalProps) {
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
   const {
     formState: { errors },
     handleSubmit,
@@ -49,6 +51,13 @@ export function CreateAgentModal({
     defaultValues,
     resolver: yupResolver(schema),
   })
+  const { dialogRef, onDialogKeyDown } = useDialogA11y({
+    initialFocusRef: nameInputRef,
+    isOpen,
+    onClose,
+  })
+  const nameRegistration = register('name')
+  const emailRegistration = register('email')
 
   useEffect(() => {
     if (!isOpen) {
@@ -61,18 +70,32 @@ export function CreateAgentModal({
   }
 
   const submitForm = handleSubmit(async (payload) => {
-    await onSubmit(payload)
-    reset(defaultValues)
-    onClose()
+    try {
+      await onSubmit(payload)
+      reset(defaultValues)
+      onClose()
+    } catch {
+      // The hook keeps the modal open and exposes the API error in the page.
+    }
   })
 
   return (
-    <S.Backdrop>
-      <S.Modal role="dialog" aria-modal="true" aria-labelledby="new-agent-title">
+    <S.Backdrop onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <S.Modal
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-agent-title"
+        aria-describedby="new-agent-description"
+        onKeyDown={onDialogKeyDown}
+      >
         <S.ModalHeader>
           <div>
             <span>Novo agente</span>
             <h2 id="new-agent-title">Criar agente</h2>
+            <p id="new-agent-description">
+              Cadastre um colaborador para distribuição de atendimentos.
+            </p>
           </div>
           <S.IconButton type="button" onClick={onClose} aria-label="Fechar modal">
             <X size={18} />
@@ -82,26 +105,59 @@ export function CreateAgentModal({
         <S.Form onSubmit={(event) => void submitForm(event)}>
           <S.Field>
             <label htmlFor="agent-name">Nome</label>
-            <input id="agent-name" type="text" {...register('name')} />
-            {errors.name && <span>{errors.name.message}</span>}
+            <input
+              id="agent-name"
+              type="text"
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? 'agent-name-error' : undefined}
+              {...nameRegistration}
+              ref={(element) => {
+                nameRegistration.ref(element)
+                nameInputRef.current = element
+              }}
+            />
+            {errors.name && (
+              <span id="agent-name-error" role="alert">
+                {errors.name.message}
+              </span>
+            )}
           </S.Field>
 
           <S.Field>
             <label htmlFor="agent-email">E-mail</label>
-            <input id="agent-email" type="email" {...register('email')} />
-            {errors.email && <span>{errors.email.message}</span>}
+            <input
+              id="agent-email"
+              type="email"
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? 'agent-email-error' : undefined}
+              {...emailRegistration}
+            />
+            {errors.email && (
+              <span id="agent-email-error" role="alert">
+                {errors.email.message}
+              </span>
+            )}
           </S.Field>
 
           <S.Field>
             <label htmlFor="agent-team">Time</label>
-            <select id="agent-team" {...register('team')}>
+            <select
+              id="agent-team"
+              aria-invalid={Boolean(errors.team)}
+              aria-describedby={errors.team ? 'agent-team-error' : undefined}
+              {...register('team')}
+            >
               {Object.values(TeamName).map((team) => (
                 <option key={team} value={team}>
                   {teamLabels[team]}
                 </option>
               ))}
             </select>
-            {errors.team && <span>{errors.team.message}</span>}
+            {errors.team && (
+              <span id="agent-team-error" role="alert">
+                {errors.team.message}
+              </span>
+            )}
           </S.Field>
 
           <S.Footer>

@@ -45,12 +45,3 @@ export type DashboardActivityEventType =
   | 'ATTENDANCE_FINISHED'
   | 'ATTENDANCE_CANCELLED'
   | 'AGENT_STATUS_CHANGED'
-
-export interface DashboardActivityResponse {
-  id: string
-  type: DashboardActivityEventType | ActivityType
-  title?: string
-  description?: string
-  createdAt?: string
-  timestamp?: string
-}

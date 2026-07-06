@@ -8,6 +8,7 @@ import { Table, type TableColumn } from '../../components/Table'
 import { AttendanceStatus } from '../../models/enum/attendanceStatus'
 import { TeamName } from '../../models/enum/teamName'
 import { formatDateTime } from '../../utils/dateUtils'
+import { getAttendanceProtocol } from '../../utils/attendanceUtils'
 import { attendanceStatusMeta, teamLabels } from '../../utils/statusUtils'
 import { CreateAttendanceModal } from './components/CreateAttendanceModal'
 import { useAttendances } from './hooks/attendancesHook'
@@ -15,12 +16,12 @@ import * as S from './styles'
 
 const columns: TableColumn[] = [
   { key: 'protocol', label: 'Protocolo' },
-  { key: 'customer', label: 'Cliente' },
-  { key: 'team', label: 'Time' },
-  { key: 'status', label: 'Status' },
-  { key: 'agent', label: 'Agente' },
-  { key: 'createdAt', label: 'Criado em' },
-  { key: 'actions', label: 'Acoes', align: 'right' },
+  { key: 'customerName', label: 'Cliente', sortable: true },
+  { key: 'team', label: 'Time', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'assignedAgentName', label: 'Agente', sortable: true },
+  { key: 'createdAt', label: 'Criado em', sortable: true },
+  { key: 'actions', label: 'Ações', align: 'right' },
 ]
 
 export function Attendances() {
@@ -35,18 +36,25 @@ export function Attendances() {
     error,
     filteredAttendances,
     finishAttendance,
+    handleSort,
     loading,
+    page,
+    pageSize,
+    setPage,
     setStatusFilter,
     setTeamFilter,
+    sort,
     statusFilter,
     teamFilter,
+    totalItems,
+    visibleAttendances,
   } = useAttendances()
 
   return (
     <>
       <Header
         title="Atendimentos"
-        subtitle="Controle de fila, distribuicao e encerramento"
+        subtitle="Controle de fila, distribuição e encerramento"
         actions={
           <S.HeaderActions>
             <S.PrimaryAction
@@ -61,7 +69,7 @@ export function Attendances() {
       />
 
       <S.PageStack>
-        {error && <S.Notice>{error}</S.Notice>}
+        {error && <S.Notice role="alert">{error}</S.Notice>}
 
         <S.Filters>
           <S.FilterGroup>
@@ -110,12 +118,23 @@ export function Attendances() {
             description="Ajuste os filtros para visualizar outros atendimentos."
           />
         ) : (
-          <Table columns={columns}>
-            {filteredAttendances.map((attendance) => (
+          <Table
+            caption="Lista de atendimentos operacionais"
+            columns={columns}
+            onSort={handleSort}
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              onPageChange: setPage,
+            }}
+            sort={sort}
+          >
+            {visibleAttendances.map((attendance) => (
               <tr key={attendance.id}>
                 <td>
                   <S.PrimaryCell>
-                    <strong>{attendance.protocol}</strong>
+                    <strong>{getAttendanceProtocol(attendance)}</strong>
                     <span>{attendance.subject}</span>
                   </S.PrimaryCell>
                 </td>
@@ -135,7 +154,7 @@ export function Attendances() {
                         actionLoadingId === attendance.id
                       }
                       onClick={() => void finishAttendance(attendance.id)}
-                      aria-label="Finalizar atendimento"
+                      aria-label={`Finalizar atendimento de ${attendance.customerName}`}
                     >
                       <CheckCircle2 size={16} />
                     </S.ActionButton>
@@ -146,7 +165,7 @@ export function Attendances() {
                         actionLoadingId === attendance.id
                       }
                       onClick={() => void cancelAttendance(attendance.id)}
-                      aria-label="Cancelar atendimento"
+                      aria-label={`Cancelar atendimento de ${attendance.customerName}`}
                     >
                       <XCircle size={16} />
                     </S.ActionButton>

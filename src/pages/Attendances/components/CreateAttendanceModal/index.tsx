@@ -1,8 +1,9 @@
 import { yupResolver } from '@hookform/resolvers/yup'
 import { X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
+import { useDialogA11y } from '../../../../hooks/useDialogA11y'
 import type { CreateAttendancePayload } from '../../../../models/interface/attendance'
 import * as S from './styles'
 
@@ -29,6 +30,7 @@ export function CreateAttendanceModal({
   onClose,
   onSubmit,
 }: CreateAttendanceModalProps) {
+  const customerNameInputRef = useRef<HTMLInputElement | null>(null)
   const {
     formState: { errors },
     handleSubmit,
@@ -38,6 +40,13 @@ export function CreateAttendanceModal({
     defaultValues,
     resolver: yupResolver(schema),
   })
+  const { dialogRef, onDialogKeyDown } = useDialogA11y({
+    initialFocusRef: customerNameInputRef,
+    isOpen,
+    onClose,
+  })
+  const customerNameRegistration = register('customerName')
+  const subjectRegistration = register('subject')
 
   useEffect(() => {
     if (!isOpen) {
@@ -60,16 +69,22 @@ export function CreateAttendanceModal({
   })
 
   return (
-    <S.Backdrop>
+    <S.Backdrop onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <S.Modal
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-attendance-title"
+        aria-describedby="new-attendance-description"
+        onKeyDown={onDialogKeyDown}
       >
         <S.ModalHeader>
           <div>
             <span>Novo atendimento</span>
             <h2 id="new-attendance-title">Criar atendimento</h2>
+            <p id="new-attendance-description">
+              Registre a demanda inicial para entrada na fila operacional.
+            </p>
           </div>
           <S.IconButton type="button" onClick={onClose} aria-label="Fechar modal">
             <X size={18} />
@@ -83,9 +98,21 @@ export function CreateAttendanceModal({
               id="attendance-customer-name"
               type="text"
               placeholder="Bruno"
-              {...register('customerName')}
+              aria-invalid={Boolean(errors.customerName)}
+              aria-describedby={
+                errors.customerName ? 'attendance-customer-name-error' : undefined
+              }
+              {...customerNameRegistration}
+              ref={(element) => {
+                customerNameRegistration.ref(element)
+                customerNameInputRef.current = element
+              }}
             />
-            {errors.customerName && <span>{errors.customerName.message}</span>}
+            {errors.customerName && (
+              <span id="attendance-customer-name-error" role="alert">
+                {errors.customerName.message}
+              </span>
+            )}
           </S.Field>
 
           <S.Field>
@@ -93,10 +120,18 @@ export function CreateAttendanceModal({
             <textarea
               id="attendance-subject"
               rows={4}
-              placeholder="Problemas com cartao"
-              {...register('subject')}
+              placeholder="Problemas com cartão"
+              aria-invalid={Boolean(errors.subject)}
+              aria-describedby={
+                errors.subject ? 'attendance-subject-error' : undefined
+              }
+              {...subjectRegistration}
             />
-            {errors.subject && <span>{errors.subject.message}</span>}
+            {errors.subject && (
+              <span id="attendance-subject-error" role="alert">
+                {errors.subject.message}
+              </span>
+            )}
           </S.Field>
 
           <S.Footer>

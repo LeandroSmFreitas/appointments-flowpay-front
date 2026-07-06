@@ -6,8 +6,10 @@ import {
   type DashboardEventType,
   type DashboardRealtimeEvent,
 } from '../services/dashboardEventService'
+import { createLogger } from '../utils/logger'
 
 const pollingIntervalInMs = 5000
+const logger = createLogger('dashboard-events')
 
 export type RealtimeMode = 'connecting' | 'sse' | 'polling'
 
@@ -82,6 +84,7 @@ export function useDashboardEvents({
 
       setRealtimeMode('polling')
       setRealtimeError('Tempo real indisponível. Usando polling a cada 5 segundos.')
+      logger.warn('SSE unavailable; polling fallback started')
       pollingIntervalId = window.setInterval(() => notifyEvent(), pollingIntervalInMs)
     }
 
@@ -147,6 +150,7 @@ export function useDashboardEvents({
           return
         }
 
+        logger.warn('SSE connection error')
         closeEventSource()
         startPollingFallback()
       }
@@ -158,7 +162,11 @@ export function useDashboardEvents({
           handleNamedEvent(eventType, event),
         )
       })
-    } catch {
+    } catch (caughtError) {
+      logger.error('Failed to initialize dashboard events', {
+        error:
+          caughtError instanceof Error ? caughtError.message : String(caughtError),
+      })
       closeEventSource()
       startPollingFallback()
     }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useDashboardRealtime } from '../../../context/useDashboardRealtime'
 import { AttendanceStatus } from '../../../models/enum/attendanceStatus'
 import { TeamName } from '../../../models/enum/teamName'
@@ -6,19 +6,28 @@ import type {
   Attendance,
   CreateAttendancePayload,
 } from '../../../models/interface/attendance'
-import { attendanceService } from '../../../services/attendanceService'
+import {
+  attendanceService,
+  type AttendanceSortKey,
+} from '../../../services/attendanceService'
 import type { DashboardEventType } from '../../../services/dashboardEventService'
+import {
+  getNextSortState,
+  pageSize,
+  toApiSort,
+  type SortState,
+} from '../../../utils/tableUtils'
 
 export type AttendanceStatusFilter = AttendanceStatus | 'ALL'
 export type AttendanceTeamFilter = TeamName | 'ALL'
 
-const replaceAttendance = (
-  attendances: Attendance[],
-  nextAttendance: Attendance,
-): Attendance[] =>
-  attendances.map((attendance) =>
-    attendance.id === nextAttendance.id ? nextAttendance : attendance,
-  )
+const attendanceSortKeys: readonly AttendanceSortKey[] = [
+  'assignedAgentName',
+  'createdAt',
+  'customerName',
+  'status',
+  'team',
+]
 
 const attendanceRealtimeEvents: readonly DashboardEventType[] = [
   'ATTENDANCE_CREATED',
@@ -27,42 +36,62 @@ const attendanceRealtimeEvents: readonly DashboardEventType[] = [
   'ATTENDANCE_CANCELLED',
 ]
 
+const isAttendanceSortKey = (key: string): key is AttendanceSortKey =>
+  attendanceSortKeys.includes(key as AttendanceSortKey)
+
 export function useAttendances() {
   const [attendances, setAttendances] = useState<Attendance[]>([])
-  const [statusFilter, setStatusFilter] =
+  const [statusFilter, setStatusFilterState] =
     useState<AttendanceStatusFilter>('ALL')
-  const [teamFilter, setTeamFilter] = useState<AttendanceTeamFilter>('ALL')
+  const [teamFilter, setTeamFilterState] = useState<AttendanceTeamFilter>('ALL')
+  const [sort, setSort] = useState<SortState<AttendanceSortKey>>({
+    key: 'createdAt',
+    direction: 'desc',
+  })
+  const [page, setPage] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
   const [loading, setLoading] = useState(true)
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { eventRevision, lastEvent, pollingRevision } = useDashboardRealtime()
 
-  const fetchAttendances = useCallback(async (options?: { silent?: boolean }) => {
-    try {
-      if (!options?.silent) {
-        setLoading(true)
-      }
+  const fetchAttendances = useCallback(
+    async (options?: { force?: boolean; silent?: boolean }) => {
+      try {
+        if (!options?.silent) {
+          setLoading(true)
+        }
 
-      const result = await attendanceService.getAttendances()
+        const result = await attendanceService.getAttendances({
+          page: page - 1,
+          size: pageSize,
+          sort: toApiSort(sort),
+          force: options?.force,
+          status: statusFilter === 'ALL' ? undefined : statusFilter,
+          team: teamFilter === 'ALL' ? undefined : teamFilter,
+        })
 
-      setAttendances(result.data)
-      setError(null)
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Nao foi possivel carregar os atendimentos.',
-      )
-    } finally {
-      if (!options?.silent) {
-        setLoading(false)
+        setAttendances(result.data.content)
+        setTotalItems(result.data.totalElements)
+        setError(null)
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Não foi possível carregar os atendimentos.',
+        )
+      } finally {
+        if (!options?.silent) {
+          setLoading(false)
+        }
       }
-    }
-  }, [])
+    },
+    [page, sort, statusFilter, teamFilter],
+  )
 
   const refreshAttendancesFromEvents = useCallback(
-    () => fetchAttendances({ silent: true }),
+    () => fetchAttendances({ force: true, silent: true }),
     [fetchAttendances],
   )
 
@@ -86,35 +115,41 @@ export function useAttendances() {
     }
   }, [pollingRevision, refreshAttendancesFromEvents])
 
-  const filteredAttendances = useMemo(
-    () =>
-      attendances.filter((attendance) => {
-        const matchesStatus =
-          statusFilter === 'ALL' || attendance.status === statusFilter
-        const matchesTeam = teamFilter === 'ALL' || attendance.team === teamFilter
+  const setStatusFilter = (nextStatusFilter: AttendanceStatusFilter): void => {
+    setStatusFilterState(nextStatusFilter)
+    setPage(1)
+  }
 
-        return matchesStatus && matchesTeam
-      }),
-    [attendances, statusFilter, teamFilter],
-  )
+  const setTeamFilter = (nextTeamFilter: AttendanceTeamFilter): void => {
+    setTeamFilterState(nextTeamFilter)
+    setPage(1)
+  }
+
+  const handleSort = (key: string): void => {
+    if (!isAttendanceSortKey(key)) {
+      return
+    }
+
+    setSort((currentSort) => getNextSortState(currentSort, key))
+    setPage(1)
+  }
 
   const createAttendance = async (
     payload: CreateAttendancePayload,
   ): Promise<void> => {
     try {
       setCreating(true)
-      const result = await attendanceService.createAttendance(payload)
-
-      setAttendances((currentAttendances) => [
-        result.data,
-        ...currentAttendances,
-      ])
+      await attendanceService.createAttendance(payload)
+      setPage(1)
+      if (page === 1) {
+        await fetchAttendances({ silent: true })
+      }
       setError(null)
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Nao foi possivel criar o atendimento.',
+          : 'Não foi possível criar o atendimento.',
       )
       throw caughtError
     } finally {
@@ -125,17 +160,14 @@ export function useAttendances() {
   const finishAttendance = async (id: string): Promise<void> => {
     try {
       setActionLoadingId(id)
-      const result = await attendanceService.finishAttendance(id)
-
-      setAttendances((currentAttendances) =>
-        replaceAttendance(currentAttendances, result.data),
-      )
+      await attendanceService.finishAttendance(id)
+      await fetchAttendances({ silent: true })
       setError(null)
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Nao foi possivel finalizar o atendimento.',
+          : 'Não foi possível finalizar o atendimento.',
       )
     } finally {
       setActionLoadingId(null)
@@ -145,17 +177,14 @@ export function useAttendances() {
   const cancelAttendance = async (id: string): Promise<void> => {
     try {
       setActionLoadingId(id)
-      const result = await attendanceService.cancelAttendance(id)
-
-      setAttendances((currentAttendances) =>
-        replaceAttendance(currentAttendances, result.data),
-      )
+      await attendanceService.cancelAttendance(id)
+      await fetchAttendances({ silent: true })
       setError(null)
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Nao foi possivel cancelar o atendimento.',
+          : 'Não foi possível cancelar o atendimento.',
       )
     } finally {
       setActionLoadingId(null)
@@ -177,13 +206,20 @@ export function useAttendances() {
     createAttendance,
     creating,
     error,
-    filteredAttendances,
+    filteredAttendances: attendances,
     finishAttendance,
+    handleSort,
     loading,
+    page,
+    pageSize,
     refetch: fetchAttendances,
+    setPage,
     setStatusFilter,
     setTeamFilter,
+    sort,
     statusFilter,
     teamFilter,
+    totalItems,
+    visibleAttendances: attendances,
   }
 }

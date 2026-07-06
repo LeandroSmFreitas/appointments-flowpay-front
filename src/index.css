@@ -1,4 +1,9 @@
 :root {
+  --color-background: #f7f9fe;
+  --color-text: #111827;
+  --color-primary: #5b2eea;
+  --color-focus-ring: rgba(91, 46, 234, 0.28);
+  --shadow-focus-ring: 0 0 0 4px var(--color-focus-ring);
   color: #111827;
   background: #f7f9fe;
   font-family:
@@ -18,12 +23,13 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  background: #f7f9fe;
+  background: var(--color-background);
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -40,6 +46,33 @@ a {
   text-decoration: none;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+::selection {
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
 #root {
   min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

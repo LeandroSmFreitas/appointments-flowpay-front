@@ -5,20 +5,20 @@ export const Wrapper = styled.div`
   justify-items: center;
   gap: 10px;
   padding: 44px 24px;
-  border-radius: 18px;
-  border: 1px solid #edf1f7;
-  background: #ffffff;
+  border-radius: ${({ theme }) => theme.radii.xl};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.cardLight};
   text-align: center;
 
   strong {
-    color: #111827;
+    color: ${({ theme }) => theme.colors.textDark};
     font-size: 1rem;
   }
 
   p {
     max-width: 420px;
     margin: 0;
-    color: #8490a8;
+    color: ${({ theme }) => theme.colors.textSubtle};
     font-size: 0.88rem;
     line-height: 1.5;
   }
@@ -29,8 +29,8 @@ export const IconBox = styled.div`
   width: 46px;
   height: 46px;
   place-items: center;
-  border-radius: 999px;
-  color: #5b2eea;
-  background: #f2efff;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  color: ${({ theme }) => theme.colors.primary};
+  background: ${({ theme }) => theme.colors.primarySoft};
   border: 1px solid #e5ddff;
 `

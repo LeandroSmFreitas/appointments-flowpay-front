@@ -19,7 +19,7 @@ export const Modal = styled.div`
   box-shadow: 0 24px 80px rgba(86, 101, 126, 0.18);
 `
 
-export const ModalHeader = styled.header`
+export const ModalHeader = styled.div`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -38,6 +38,14 @@ export const ModalHeader = styled.header`
     color: #111827;
     font-size: 1.25rem;
     letter-spacing: 0;
+  }
+
+  p {
+    max-width: 380px;
+    margin: 6px 0 0;
+    color: #8490a8;
+    font-size: 0.84rem;
+    line-height: 1.45;
   }
 `
 
@@ -80,6 +88,11 @@ export const Field = styled.div`
     outline: none;
     font: inherit;
     resize: vertical;
+
+    &[aria-invalid='true'] {
+      border-color: #ef4444;
+      background: #fff7f7;
+    }
   }
 
   textarea {
@@ -95,7 +108,7 @@ export const Field = styled.div`
   }
 `
 
-export const Footer = styled.footer`
+export const Footer = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 10px;

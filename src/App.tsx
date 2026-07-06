@@ -1,4 +1,5 @@
 import { BrowserRouter } from 'react-router-dom'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/Sidebar'
 import { AppShellProvider } from './context/AppShellContext'
 import { DashboardRealtimeProvider } from './context/DashboardRealtimeContext'
@@ -11,10 +12,13 @@ function App() {
       <AppShellProvider>
         <DashboardRealtimeProvider>
           <S.Shell>
+            <S.SkipLink href="#main-content">Pular para o conteúdo</S.SkipLink>
             <Sidebar />
-            <S.Main>
+            <S.Main id="main-content" tabIndex={-1}>
               <S.Content>
-                <AppRoutes />
+                <ErrorBoundary>
+                  <AppRoutes />
+                </ErrorBoundary>
               </S.Content>
             </S.Main>
           </S.Shell>

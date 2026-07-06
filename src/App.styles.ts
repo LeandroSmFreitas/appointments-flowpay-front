@@ -1,5 +1,25 @@
 import styled from 'styled-components'
 
+export const SkipLink = styled.a`
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  transform: translateY(-140%);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #ffffff;
+  background: #111827;
+  font-size: 0.86rem;
+  font-weight: 800;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.22);
+  transition: transform 160ms ease;
+
+  &:focus-visible {
+    transform: translateY(0);
+  }
+`
+
 export const Shell = styled.div`
   min-height: 100vh;
   background:

@@ -1,22 +1,29 @@
 import { api } from './api'
-import type { ServiceResult } from './serviceTypes'
-import type {
-  DashboardActivityResponse,
-  DashboardSummary,
-} from '../models/interface/dashboard'
+import { apiContracts, validateApiResponse } from './apiContracts'
+import { createCacheKey, getCachedData, setCachedData } from './cacheStore'
+import type { ServiceReadOptions, ServiceResult } from './serviceTypes'
+import type { DashboardSummary } from '../models/interface/dashboard'
 
 export const dashboardService = {
-  async getSummary(): Promise<ServiceResult<DashboardSummary>> {
-    const response = await api.get<DashboardSummary>('/api/v1/dashboard/summary')
+  async getSummary(
+    options?: ServiceReadOptions,
+  ): Promise<ServiceResult<DashboardSummary>> {
+    const cacheKey = createCacheKey('dashboard-summary')
+    const cached = getCachedData<DashboardSummary>(cacheKey, options)
 
-    return { data: response.data }
-  },
+    if (cached) {
+      return { data: cached }
+    }
 
-  async getRecentActivities(): Promise<ServiceResult<DashboardActivityResponse[]>> {
-    const response = await api.get<DashboardActivityResponse[]>(
-      '/api/v1/dashboard/activities',
+    const response = await api.get<unknown>('/api/v1/dashboard/summary')
+    const data = validateApiResponse(
+      response.data,
+      apiContracts.dashboardSummary,
+      'resumo do dashboard',
     )
 
-    return { data: response.data }
+    setCachedData(cacheKey, data)
+
+    return { data }
   },
 }

@@ -7,6 +7,7 @@ import { LoadingState } from '../../components/LoadingState'
 import { StatusBadge } from '../../components/StatusBadge'
 import { Table, type TableColumn } from '../../components/Table'
 import { AgentStatus } from '../../models/enum/agentStatus'
+import { TeamName } from '../../models/enum/teamName'
 import { formatDateTime } from '../../utils/dateUtils'
 import { agentStatusMeta, teamLabels } from '../../utils/statusUtils'
 import { CreateAgentModal } from './components/CreateAgentModal'
@@ -14,11 +15,11 @@ import { useAgents } from './hooks/agentsHook'
 import * as S from './styles'
 
 const columns: TableColumn[] = [
-  { key: 'agent', label: 'Agente' },
-  { key: 'team', label: 'Time' },
-  { key: 'status', label: 'Status' },
-  { key: 'workload', label: 'Carga' },
-  { key: 'createdAt', label: 'Criado em' },
+  { key: 'name', label: 'Agente', sortable: true },
+  { key: 'team', label: 'Time', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'activeCount', label: 'Carga', sortable: true },
+  { key: 'createdAt', label: 'Criado em', sortable: true },
   { key: 'actions', label: 'Alterar status', align: 'right' },
 ]
 
@@ -31,14 +32,25 @@ export function Agents() {
     createAgent,
     creating,
     error,
+    handleSort,
     loading,
+    page,
+    pageSize,
+    setPage,
+    setStatusFilter,
+    setTeamFilter,
+    sort,
+    statusFilter,
+    teamFilter,
+    totalItems,
+    visibleAgents,
   } = useAgents()
 
   return (
     <>
       <Header
         title="Agentes"
-        subtitle="Gestão de disponibilidade e capacidade operacional"
+        subtitle="Gestao de disponibilidade e capacidade operacional"
         actions={
           <S.HeaderActions>
             <S.PrimaryAction
@@ -53,7 +65,45 @@ export function Agents() {
       />
 
       <S.PageStack>
-        {error && <S.Notice>{error}</S.Notice>}
+        {error && <S.Notice role="alert">{error}</S.Notice>}
+
+        <S.Filters>
+          <S.FilterGroup>
+            <label htmlFor="agent-status">Status</label>
+            <select
+              id="agent-status"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as typeof statusFilter)
+              }
+            >
+              <option value="ALL">Todos</option>
+              {Object.values(AgentStatus).map((status) => (
+                <option key={status} value={status}>
+                  {agentStatusMeta[status].label}
+                </option>
+              ))}
+            </select>
+          </S.FilterGroup>
+
+          <S.FilterGroup>
+            <label htmlFor="agent-team">Time</label>
+            <select
+              id="agent-team"
+              value={teamFilter}
+              onChange={(event) =>
+                setTeamFilter(event.target.value as typeof teamFilter)
+              }
+            >
+              <option value="ALL">Todos</option>
+              {Object.values(TeamName).map((team) => (
+                <option key={team} value={team}>
+                  {teamLabels[team]}
+                </option>
+              ))}
+            </select>
+          </S.FilterGroup>
+        </S.Filters>
 
         {loading ? (
           <LoadingState label="Carregando agentes..." />
@@ -64,15 +114,25 @@ export function Agents() {
             description="Crie agentes para iniciar a distribuição de atendimentos."
           />
         ) : (
-          <Table columns={columns}>
-            {agents.map((agent) => (
+          <Table
+            caption="Lista de agentes operacionais"
+            columns={columns}
+            onSort={handleSort}
+            pagination={{
+              page,
+              pageSize,
+              totalItems,
+              onPageChange: setPage,
+            }}
+            sort={sort}
+          >
+            {visibleAgents.map((agent) => (
               <tr key={agent.id}>
                 <td>
                   <S.AgentIdentity>
                     <S.Avatar>{agent.name.slice(0, 1).toUpperCase()}</S.Avatar>
                     <div>
                       <strong>{agent.name}</strong>
-                      <span>{agent.email}</span>
                     </div>
                   </S.AgentIdentity>
                 </td>
@@ -91,6 +151,8 @@ export function Agents() {
                         key={status}
                         type="button"
                         $active={agent.status === status}
+                        aria-pressed={agent.status === status}
+                        aria-label={`Alterar ${agent.name} para ${agentStatusMeta[status].label}`}
                         disabled={actionLoadingId === agent.id}
                         onClick={() => void changeAgentStatus(agent.id, status)}
                       >

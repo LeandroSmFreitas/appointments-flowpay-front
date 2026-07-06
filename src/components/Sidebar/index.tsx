@@ -33,8 +33,12 @@ export function Sidebar() {
 
   return (
     <>
-      <S.Overlay $isOpen={isSidebarOpen} onClick={closeSidebar} />
-      <S.Aside $isOpen={isSidebarOpen}>
+      <S.Overlay
+        $isOpen={isSidebarOpen}
+        aria-hidden="true"
+        onClick={closeSidebar}
+      />
+      <S.Aside $isOpen={isSidebarOpen} aria-label="Menu principal">
         <S.Panel>
           <S.MobileCloseButton
             type="button"

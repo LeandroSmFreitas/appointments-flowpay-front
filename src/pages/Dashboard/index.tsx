@@ -12,7 +12,6 @@ import * as S from './styles'
 export function Dashboard() {
   const {
     activities,
-    activitiesError,
     error,
     loading,
     queueHistory,
@@ -34,7 +33,7 @@ export function Dashboard() {
       <Header title="Dashboard" subtitle="FlowPay Operations em tempo real" />
 
       {error && (
-        <S.Notice>
+        <S.Notice role="alert">
           <span>{error}</span>
         </S.Notice>
       )}
@@ -84,7 +83,7 @@ export function Dashboard() {
               usedCapacity={totals.usedCapacity}
               availableCapacity={totals.availableCapacity}
             />
-            <LiveActivityFeed activities={activities} error={activitiesError} />
+            <LiveActivityFeed activities={activities} />
           </S.AnalyticsGrid>
         </S.PageStack>
       )}

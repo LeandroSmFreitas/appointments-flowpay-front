@@ -2,11 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDashboardRealtime } from '../../../context/useDashboardRealtime'
 import { TeamName } from '../../../models/enum/teamName'
 import type {
-  ActivityType,
-  DashboardActivityEventType,
-  DashboardActivityResponse,
   DashboardSummary,
-  LiveActivity,
   QueueHistoryPoint,
   TeamSummary,
 } from '../../../models/interface/dashboard'
@@ -34,53 +30,6 @@ const normalizeSummary = (summary: DashboardSummary): DashboardSummary => ({
   ),
 })
 
-const activityTypeByBackendEvent: Record<DashboardActivityEventType, ActivityType> =
-  {
-    ATTENDANCE_CREATED: 'CREATED',
-    ATTENDANCE_ASSIGNED: 'ASSIGNED',
-    ATTENDANCE_FINISHED: 'FINISHED',
-    ATTENDANCE_CANCELLED: 'CANCELLED',
-    AGENT_STATUS_CHANGED: 'AGENT_STATUS',
-  }
-
-const activityTitleByType: Record<ActivityType, string> = {
-  CREATED: 'Atendimento criado',
-  ASSIGNED: 'Atendimento atribuido',
-  FINISHED: 'Atendimento finalizado',
-  CANCELLED: 'Atendimento cancelado',
-  AGENT_STATUS: 'Status de agente alterado',
-}
-
-const activityDescriptionByType: Record<ActivityType, string> = {
-  CREATED: 'Atendimento criado e colocado na fila',
-  ASSIGNED: 'Atendimento atribuido a um colaborador',
-  FINISHED: 'Atendimento finalizado por um colaborador',
-  CANCELLED: 'Atendimento cancelado no fluxo operacional',
-  AGENT_STATUS: 'Status de agente atualizado na operacao',
-}
-
-const isBackendEventType = (
-  type: DashboardActivityResponse['type'],
-): type is DashboardActivityEventType => type in activityTypeByBackendEvent
-
-const normalizeActivityType = (
-  type: DashboardActivityResponse['type'],
-): ActivityType => (isBackendEventType(type) ? activityTypeByBackendEvent[type] : type)
-
-const normalizeActivity = (
-  activity: DashboardActivityResponse,
-): LiveActivity => {
-  const type = normalizeActivityType(activity.type)
-
-  return {
-    id: activity.id,
-    type,
-    title: activity.title ?? activityTitleByType[type],
-    description: activity.description ?? activityDescriptionByType[type],
-    timestamp: activity.timestamp ?? activity.createdAt ?? new Date().toISOString(),
-  }
-}
-
 const buildCurrentHistoryPoint = (
   summary: DashboardSummary,
 ): QueueHistoryPoint => ({
@@ -92,12 +41,9 @@ const buildCurrentHistoryPoint = (
 export function useDashboard() {
   const {
     activities,
-    activitiesError,
     eventRevision,
     pollingRevision,
     realtimeError,
-    setActivitiesError,
-    setBackendActivities,
   } = useDashboardRealtime()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [queueHistory, setQueueHistory] = useState<QueueHistoryPoint[]>([])
@@ -105,55 +51,36 @@ export function useDashboard() {
   const [error, setError] = useState<string | null>(null)
   const lastHandledRevisionRef = useRef(0)
 
-  const refreshActivities = useCallback(async () => {
+  const refresh = useCallback(async (options?: { force?: boolean }) => {
     try {
-      const result = await dashboardService.getRecentActivities()
+      const summaryResult = await dashboardService.getSummary({
+        force: options?.force,
+      })
+      const normalizedSummary = normalizeSummary(summaryResult.data)
 
-      setBackendActivities(result.data.map(normalizeActivity))
-      setActivitiesError(null)
+      setSummary(normalizedSummary)
+      setError(null)
+      setQueueHistory((currentHistory) =>
+        currentHistory.length === 0
+          ? [buildCurrentHistoryPoint(normalizedSummary)]
+          : [
+              ...currentHistory.slice(-7),
+              buildCurrentHistoryPoint(normalizedSummary),
+            ],
+      )
     } catch (caughtError) {
-      setActivitiesError(
+      setError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'Nao foi possivel carregar as atividades recentes.',
+          : 'Não foi possível carregar o dashboard.',
       )
+    } finally {
+      setLoading(false)
     }
-  }, [setActivitiesError, setBackendActivities])
-
-  const refresh = useCallback(
-    async (options?: { syncActivities?: boolean }) => {
-      try {
-        const [summaryResult] = await Promise.all([
-          dashboardService.getSummary(),
-          options?.syncActivities ? refreshActivities() : Promise.resolve(),
-        ])
-        const normalizedSummary = normalizeSummary(summaryResult.data)
-
-        setSummary(normalizedSummary)
-        setError(null)
-        setQueueHistory((currentHistory) =>
-          currentHistory.length === 0
-            ? [buildCurrentHistoryPoint(normalizedSummary)]
-            : [
-                ...currentHistory.slice(-7),
-                buildCurrentHistoryPoint(normalizedSummary),
-              ],
-        )
-      } catch (caughtError) {
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'Nao foi possivel carregar o dashboard.',
-        )
-      } finally {
-        setLoading(false)
-      }
-    },
-    [refreshActivities],
-  )
+  }, [])
 
   useEffect(() => {
-    void refresh({ syncActivities: true })
+    void refresh()
   }, [refresh])
 
   useEffect(() => {
@@ -167,7 +94,7 @@ export function useDashboard() {
     }
 
     lastHandledRevisionRef.current = currentRevision
-    void refresh({ syncActivities: false })
+    void refresh({ force: true })
   }, [eventRevision, pollingRevision, refresh])
 
   const totals = useMemo(() => {
@@ -191,7 +118,6 @@ export function useDashboard() {
 
   return {
     activities,
-    activitiesError,
     error: error ?? realtimeError,
     loading,
     queueHistory,

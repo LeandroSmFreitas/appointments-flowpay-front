@@ -43,6 +43,40 @@ export const PrimaryAction = styled.button`
   }
 `
 
+export const Filters = styled.section`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #edf1f7;
+  box-shadow: 0 18px 40px rgba(86, 101, 126, 0.08);
+`
+
+export const FilterGroup = styled.div`
+  display: grid;
+  min-width: 220px;
+  gap: 8px;
+
+  label {
+    color: #8490a8;
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+
+  select {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 12px;
+    color: #111827;
+    background: #f8faff;
+    border: 1px solid #e8edf6;
+    outline: none;
+  }
+`
+
 export const AgentIdentity = styled.div`
   display: flex;
   align-items: center;
